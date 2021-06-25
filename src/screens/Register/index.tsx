@@ -29,7 +29,6 @@ export function Register() {
             placeholder='Preco' 
           />
 
-
           <TransactionsType>
 
             <TransactionTypeButton 
