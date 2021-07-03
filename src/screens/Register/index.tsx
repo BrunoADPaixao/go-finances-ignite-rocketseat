@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { Modal } from 'react-native';
+import { Alert, Keyboard, Modal, TouchableWithoutFeedback } from 'react-native';
+import { useForm } from 'react-hook-form';
+import * as Yup from 'yup'
+import { yupResolver } from '@hookform/resolvers/yup'
 
 import { InputForm } from '../../components/Form/InputForm';
 import { Button } from '../../components/Form/Button';
@@ -9,13 +12,23 @@ import { CategorySelectButton } from '../../components/Form/CategorySelectButton
 import { CategorySelect } from '../CategorySelect';
 
 import { Container, Header, Title, Form, Fields, TransactionsType } from './styles';
-import { useForm } from 'react-hook-form';
 
 
 interface FormData {
   name: string;
   amount: string;
 }
+
+const schema = Yup.object().shape({
+  name: Yup
+    .string()
+    .required('Nome é obrigatório'),
+  amount: Yup
+    .number()
+    .typeError('Informe um valor numerico')
+    .positive('O valor nao pode ser negativo')
+    .required('O valor é obrigatório')
+})
 
 export function Register() {
   const [transactionType, setTransactionType] = useState('');
@@ -28,10 +41,16 @@ export function Register() {
 
   const {
     control,
-    handleSubmit
-  } = useForm();
+    handleSubmit,
+    formState: {errors},
+  } = useForm( {resolver: yupResolver(schema)});
 
   function handleRegister(form: FormData) {
+    if (!transactionType)
+      return Alert.alert('Selecione o tipo de transacao!');
+
+      if (category.key === 'category')
+        return Alert.alert('Selecione a categoria!')
 
     const data = {
       name: form.name,
@@ -56,6 +75,7 @@ export function Register() {
   }
 
   return (
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <Container>
       <Header>
         <Title>Cadastro</Title>
@@ -67,11 +87,16 @@ export function Register() {
             name='name'
             control={control}
             placeholder='Nome' 
+            autoCapitalize='sentences'
+            autoCorrect={false}
+            error={errors.name && errors.name.message}
             />
           <InputForm 
             name='amount'
             control={control}
             placeholder='Preco' 
+            keyboardType='numeric'
+            error={errors.amount && errors.amount.message}
           />
 
           <TransactionsType>
@@ -108,5 +133,6 @@ export function Register() {
       />
       </Modal>
     </Container>
+      </TouchableWithoutFeedback>
   )
 }
