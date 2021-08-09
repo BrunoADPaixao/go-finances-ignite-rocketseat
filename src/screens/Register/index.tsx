@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { Alert, Keyboard, Modal, TouchableWithoutFeedback } from 'react-native';
-import { useForm } from 'react-hook-form';
 import * as Yup from 'yup'
 import { yupResolver } from '@hookform/resolvers/yup'
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import uuid from 'react-native-uuid';
+
+import { useForm } from 'react-hook-form';
+import { useNavigation } from '@react-navigation/native';
 
 import { InputForm } from '../../components/Form/InputForm';
 import { Button } from '../../components/Form/Button';
@@ -12,7 +16,6 @@ import { CategorySelectButton } from '../../components/Form/CategorySelectButton
 import { CategorySelect } from '../CategorySelect';
 
 import { Container, Header, Title, Form, Fields, TransactionsType } from './styles';
-
 
 interface FormData {
   name: string;
@@ -30,6 +33,8 @@ const schema = Yup.object().shape({
     .required('O valor é obrigatório')
 })
 
+const dataKey = '@gofinances:transactions';
+
 export function Register() {
   const [transactionType, setTransactionType] = useState('');
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -39,30 +44,58 @@ export function Register() {
     name: 'Categoria',
   })
 
+  const navigation = useNavigation();
+
   const {
     control,
     handleSubmit,
+    reset,
     formState: {errors},
   } = useForm( {resolver: yupResolver(schema)});
 
-  function handleRegister(form: FormData) {
+  async function handleRegister(form: FormData) {
     if (!transactionType)
       return Alert.alert('Selecione o tipo de transacao!');
 
       if (category.key === 'category')
         return Alert.alert('Selecione a categoria!')
 
-    const data = {
+    const newTransaction = {
+      id: String(uuid.v4()),
       name: form.name,
       amount: form.amount,
-      transactionType,
+      type: transactionType,
       category: category.key,
+      date: new Date()
     }
 
-    console.log(data);
+    try {
+      const data = await AsyncStorage.getItem(dataKey);
+      const currentData = data ? JSON.parse(data) : [];
+
+      const dataFormated = [
+        ...currentData,
+        newTransaction
+      ]
+
+      await AsyncStorage.setItem(dataKey, JSON.stringify(dataFormated));
+
+      reset()
+      setTransactionType('');
+      setCategory({
+        key: 'category',
+        name: 'Categoria'
+      });
+
+      navigation.navigate('Listagem');
+
+    } catch (error) {
+      console.log(error);
+      Alert.alert('Nao foi possivel salvar');
+    }
   }
 
-  function handleTransactionTypeSelect(type: 'up' | 'down') {
+  function handleTransactionTypeSelect(type: 'positive' | 'negative') {
     setTransactionType(type);
   }
 
@@ -72,7 +105,7 @@ export function Register() {
 
   function handleOpenSelectCategoryModal() {
     setCategoryModalOpen(true);
-  }
+  } 
 
   return (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -104,14 +137,14 @@ export function Register() {
                 <TransactionTypeButton 
                   title='Income' 
                   type='up' 
-                  onPress={() => handleTransactionTypeSelect('up')}
-                  isActive={transactionType === 'up'}
+                  onPress={() => handleTransactionTypeSelect('positive')}
+                  isActive={transactionType === 'positive'}
                 />
                 <TransactionTypeButton 
                   title='Outcome' 
                   type='down'
-                  onPress={() => handleTransactionTypeSelect('down')}
-                  isActive={transactionType === 'down'}
+                  onPress={() => handleTransactionTypeSelect('negative')}
+                  isActive={transactionType === 'negative'}
                 />
               </TransactionsType>
 
@@ -121,7 +154,7 @@ export function Register() {
               />
             </Fields> 
 
-            <Button title='Enviar' onPress={() => handleSubmit(handleRegister)} />
+            <Button title='Enviar' onPress={handleSubmit(handleRegister)} />
           </Form>
 
           <Modal visible={categoryModalOpen}>
